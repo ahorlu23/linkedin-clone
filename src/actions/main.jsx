@@ -66,7 +66,7 @@ export function signOutAPI() {
 
 // Function to post an article
 export function postArticleAPI(payload) {
-    return (dispatch) => {
+    return async (dispatch) => {
         if (payload.image != '') {
             const storageRef = ref(storage, `images/${payload.image.name}`); // Create a reference
             const upload = uploadBytesResumable(storageRef, payload.image); // Use uploadBytesResumable
@@ -102,7 +102,27 @@ export function postArticleAPI(payload) {
                     description: payload.description
                 });
             });
+        } else if (payload.video) {
+            const articlesRef = collection(db, 'articles'); // Use the same Firestore reference as above
+
+            // Use a fallback value if payload.user.photoURL is undefined
+            const actorImage = payload.user.photoURL || ''; // Default to empty string if undefined
+
+            // Add the video post without an image
+            await addDoc(articlesRef, {
+                actor: {
+                    description: payload.user.email,
+                    title: payload.user.displayName,
+                    date: payload.timestamp,
+                    image: actorImage, // Ensure this field is never undefined
+                },
+                video: payload.video,
+                sharedImg: "", // No image, so leave it as an empty string
+                comments: 0,
+                description: payload.description
+            });
         }
     };
 }
+
 
