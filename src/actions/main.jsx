@@ -1,7 +1,7 @@
 import { auth, provider, signInWithPopup, storage } from "../firebase"; // Import the correct methods
 import db from "../firebase";
-import { SET_USER } from "./actionType";
-import { collection, addDoc } from "firebase/firestore"; // Import necessary Firestore function
+import { SET_USER, SET_LOADING_STATUS, SET_ARTICLES } from "./actionType";
+import { collection, addDoc, onSnapshot, orderBy, query } from "firebase/firestore"; // Import necessary Firestore function
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage"; // Import necessary functions
 
 // Action to set the user in the Redux store
@@ -14,6 +14,12 @@ export const setUser = (user) => ({
         // Include any other serializable fields you need
     } : null, // Set to null if user is not provided
 });
+
+export const setLoading = (status) => ({
+    type: SET_LOADING_STATUS,
+    status: status,
+});
+
 
 // Sign-in function using Firebase
 export const signInAPI = () => {
@@ -67,6 +73,8 @@ export function signOutAPI() {
 // Function to post an article
 export function postArticleAPI(payload) {
     return async (dispatch) => {
+        dispatch(setLoading(true));
+
         if (payload.image != '') {
             const storageRef = ref(storage, `images/${payload.image.name}`); // Create a reference
             const upload = uploadBytesResumable(storageRef, payload.image); // Use uploadBytesResumable
@@ -101,7 +109,9 @@ export function postArticleAPI(payload) {
                     comments: 0,
                     description: payload.description
                 });
+                dispatch(setLoading(false));
             });
+            
         } else if (payload.video) {
             const articlesRef = collection(db, 'articles'); // Use the same Firestore reference as above
 
@@ -121,8 +131,46 @@ export function postArticleAPI(payload) {
                 comments: 0,
                 description: payload.description
             });
+            dispatch(setLoading(false));
         }
     };
 }
 
+
+export function getArticlesAPI() {
+    return (dispatch) => {
+        dispatch(setLoading(true)); // Set loading status to true
+
+        // Create a query to get articles ordered by date
+        const articlesQuery = query(
+            collection(db, 'articles'),
+            orderBy('actor.date', 'desc')
+        );
+
+        // Subscribe to the articles collection
+        onSnapshot(articlesQuery, (snapshot) => {
+            const payload = snapshot.docs.map((doc) => {
+                const article = doc.data();
+                return {
+                    ...article,
+                    actor: {
+                        ...article.actor,
+                        date: article.actor.date.toDate().toISOString(), // Convert Date to ISO string
+                    },
+                };
+            });
+            console.log(payload);
+
+            dispatch({
+                type: SET_ARTICLES, // Dispatch an action to set the articles in the Redux store
+                articles: payload,
+            });
+
+            dispatch(setLoading(false)); // Set loading status to false once articles are fetched
+        }, (error) => {
+            console.error("Error fetching articles:", error);
+            dispatch(setLoading(false)); // Set loading status to false on error
+        });
+    };
+}
 

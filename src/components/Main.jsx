@@ -1,9 +1,22 @@
 import styled from "styled-components";
+import { useEffect } from "react";
 import { useState } from "react";
 import PostModal from "./PostModal";
+import { connect } from "react-redux";
+import { getArticlesAPI } from "../actions/main";
+
 
 const Main = (props) => {
   const [showModal, setShowModal] = useState("close");
+
+  useEffect(() => {
+    props.getArticlesAPI(); // Call the API to fetch articles
+  }, []);
+
+  console.log("Articles:", props.articles);
+  
+
+  console.log("Loading state:", props.loading);
 
   const handleClick = (e) => {
     e.preventDefault();
@@ -25,11 +38,20 @@ const Main = (props) => {
   };
 
   return (
+    
+    <>
+    {console.log("Articles:", props.articles)}
+
     <Container>
       <ShareBox>
         <div>
-          <img src="/images/user.svg" alt="" />
-          <button onClick={handleClick}>Start a post</button>
+            { props.user && props.user.photoURL ?
+            <img src={props.user.photoURL}/>
+            :
+            <img src="/images/user.svg" alt="" />
+            
+            }
+            <button onClick={handleClick} disabled={props.loading ? true:false}>Start a post</button>
         </div>
 
         <div>
@@ -54,7 +76,10 @@ const Main = (props) => {
           </button>
         </div>
       </ShareBox>
-      <div>
+      <Content>
+        {
+          props.loading && <img src="/images/spining-icon.svg"  />
+        }
         <Article>
           <SharedActor>
             <a>
@@ -112,9 +137,11 @@ const Main = (props) => {
             </button>
           </SocialActions>
         </Article>
-      </div>
+        </Content>
       <PostModal showModal={showModal} handleClick={handleClick} />
     </Container>
+
+    </>
   );
 };
 
@@ -290,4 +317,28 @@ const SocialActions = styled.div`
   }
 `;
 
-export default Main;
+const Content = styled.div`
+  text-align: center;
+  & > img {
+    width: 30px;
+  }
+`;
+
+const mapStateToProps = (state) => {
+  console.log("State:", state);
+  return {
+    loading: state.articleState ? state.articleState.loading : false,
+    user: state.userState ? state.userState.user : null,
+    articles: state.articleState ? state.articleState.articles : [],
+    // articles: state.articleState.articles,
+  };
+};
+
+const mapDispatchToProps = (dispatch) => {
+  return {
+    setLoadingStatus: (status) => dispatch({ type: SET_LOADING_STATUS, status }),
+    getArticlesAPI: () => dispatch(getArticlesAPI()), // Add this line
+  };
+};
+
+export default connect(mapStateToProps, mapDispatchToProps)(Main);
